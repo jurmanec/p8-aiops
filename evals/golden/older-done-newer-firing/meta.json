@@ -1,0 +1,12 @@
+{
+  "id": "older-done-newer-firing",
+  "prompt_version": "summary-prompt-v2",
+  "must_mention": [
+    "filter was blocked",
+    "firing"
+  ],
+  "must_not": [
+    "john doe"
+  ],
+  "notes": "First journey case: Done and typed reply on the older firing after a newer firing opened. Human events are pinned inside a fixed window so the brief freezes. Source: test/journey.test.ts and evals/fixtures/older-done-newer-firing.ts. Freeze with npm run eval:freeze -- older-done-newer-firing."
+}

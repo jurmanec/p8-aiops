@@ -1,0 +1,15 @@
+meta {
+  name: List events for an alert
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/v1/events
+  body: none
+  auth: none
+}
+
+params:query {
+  alert_key: {{alertKey}}
+}

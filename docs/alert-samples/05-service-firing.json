@@ -1,0 +1,30 @@
+{
+  "contract": "p8.alert",
+  "version": "0.2",
+  "event_id": "33333333-3333-4333-8333-333333333301",
+  "alert_key": "mon-checkout:job-api:9f2c1a0b7e44d618",
+  "transition": "FIRING",
+  "emitted_at": "2026-11-15T14:00:00.000Z",
+  "fired_at": "2026-11-15T14:00:00.000Z",
+  "resolved_at": null,
+  "source": "p2",
+  "severity": "warning",
+  "team": "payments-oncall",
+  "manual_url": "https://example.test/runbooks/checkout",
+  "monitor_id": "mon-checkout",
+  "monitor_name": "Checkout API Monitor",
+  "job_id": "job-api",
+  "time_series_tags": {
+    "service": "checkout",
+    "check": "error_rate"
+  },
+  "summary": "error_rate 0.04 ≥ threshold 0.02 for 3 consecutive points",
+  "details": {
+    "metric_name": "error_rate",
+    "value": 0.04,
+    "threshold": 0.02,
+    "consecutive_points": 3,
+    "window_start": "2026-11-15T13:45:00.000Z",
+    "window_end": "2026-11-15T14:00:00.000Z"
+  }
+}

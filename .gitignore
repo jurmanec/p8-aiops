@@ -1,0 +1,39 @@
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Cursor / agent (local session)
+.cursor/
+
+# Runtime / deps
+node_modules/
+data/
+*.sqlite
+dist/
+
+# Eval run artifacts (fixtures and scripts stay tracked)
+evals/runs/*.jsonl
+evals/runs/*.html
+
+# Docs kept local — not part of the public GitHub surface
+docs/planning/
+docs/brain-storming/
+docs/archive/
+docs/p8-program/
+docs/deferred.md
+docs/concepts/control-plane-devops-telemetry.md
+docs/concepts/observability/
+docs/alert-samples/archive/
+
+# Program-oriented charter (sibling links to 0.4 Shared); visitor surface is README
+CHARTER.md
+
+# Junk / non-project
+Untitled

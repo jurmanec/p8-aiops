@@ -1,0 +1,26 @@
+meta {
+  name: Close shift
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/v1/shifts
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "start": "2026-01-01T00:00:00.000Z",
+    "end": "2027-01-01T00:00:00.000Z"
+  }
+}
+
+docs {
+  The window is when the row was stored, not the alert's fired_at. Widen start and end if the report is empty. Sending the same window again returns the first report.
+}

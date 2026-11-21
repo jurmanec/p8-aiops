@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alerts</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --ink: #1c1f24;
+    --muted: #5c6570;
+    --line: #e3e6eb;
+    --select: #eef1f4;
+    --mark: #1c1f24;
+    --critical: #8d2f2f;
+    --warning: #8a5a12;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+  }
+  .app {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  header { padding: 20px 28px 8px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 500; }
+  a { color: var(--ink); }
+  #status { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+  #status:empty { display: none; }
+  main {
+    display: grid;
+    grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
+    gap: 16px;
+    padding: 16px 28px 28px;
+    min-height: 0;
+  }
+  .pane {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: auto;
+    min-height: 0;
+  }
+  .row {
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-left: 3px solid transparent;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row[aria-current="true"] {
+    background: var(--select);
+    border-left-color: var(--mark);
+  }
+  .row:focus-visible {
+    outline: 2px solid var(--mark);
+    outline-offset: -2px;
+  }
+  .title { font-weight: 500; }
+  .meta, .when, .series, .url, .empty { color: var(--muted); font-size: 12px; }
+  .empty { margin: 0; padding: 14px; font-size: 14px; }
+  .critical { color: var(--critical); }
+  .warning { color: var(--warning); }
+  .detail { padding: 20px 22px 8px; }
+  .detail h2 { margin: 0; font-size: 16px; font-weight: 500; }
+  .summary { margin: 8px 0 0; }
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .fact { display: grid; gap: 2px; }
+  .fact span { color: var(--muted); font-size: 12px; }
+  .series, .url { margin: 10px 0 0; overflow-wrap: anywhere; }
+  .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .log { margin: 8px 0 0; padding: 0; list-style: none; }
+  .log li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    align-items: baseline;
+    padding: 12px 22px;
+    border-top: 1px solid var(--line);
+  }
+  .when { flex: 1 1 16rem; }
+  .event { flex: 1 1 8rem; }
+  .event { font-weight: 500; }
+  @media (max-width: 720px) {
+    html, body { height: auto; }
+    header, main { padding-left: 16px; padding-right: 16px; }
+    .app { display: block; height: auto; }
+    main { display: block; }
+    .pane { overflow: visible; margin-bottom: 16px; }
+    .log li { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="top">
+      <h1>Alerts</h1>
+      <a href="/report">Report</a>
+    </div>
+    <p id="status"></p>
+  </header>
+  <main>
+    <section class="pane" id="list" aria-label="Alerts"></section>
+    <section class="pane" id="detail" aria-live="polite"></section>
+  </main>
+</div>
+<script>
+const ACTIONS = {
+  WORKING_ON_IT: "In progress",
+  IGNORE_IT: "Non actionable",
+  DONE: "Done",
+};
+
+const list = document.getElementById("list");
+const detail = document.getElementById("detail");
+const status = document.getElementById("status");
+
+function node(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function objectOf(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+
+function summaryOf(events, alertKey) {
+  const firing = firingBody(events);
+  if (firing && typeof firing.summary === "string" && firing.summary.length > 0) return firing.summary;
+  for (const event of events) {
+    const body = objectOf(event.body);
+    if (body && typeof body.summary === "string" && body.summary.length > 0) return body.summary;
+  }
+  return alertKey;
+}
+
+function firingBody(events) {
+  let body = null;
+  for (const event of events) {
+    const current = objectOf(event.body);
+    if (current && current.transition === "FIRING") body = current;
+  }
+  return body;
+}
+
+function monitorName(body) {
+  if (!body) return "";
+  if (typeof body.monitor_name === "string" && body.monitor_name.length > 0) return body.monitor_name;
+  const details = objectOf(body.details);
+  if (details && typeof details.monitor_name === "string" && details.monitor_name.length > 0) return details.monitor_name;
+  return "";
+}
+
+function seriesOf(body) {
+  if (!body) return "";
+  const tags = stringMap(body.identity_tags) || stringMap(body.labels) || stringMap(body.time_series_tags);
+  if (!tags) return "";
+  return Object.keys(tags)
+    .sort()
+    .map((key) => key + "=" + tags[key])
+    .join(", ");
+}
+
+function stringMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const out = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === "string") out[key] = entry;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function manualOf(events) {
+  const firing = firingBody(events);
+  if (firing && typeof firing.manual_url === "string" && firing.manual_url.length > 0) return firing.manual_url;
+  for (const event of events) {
+    const body = objectOf(event.body);
+    if (body && typeof body.manual_url === "string" && body.manual_url.length > 0) return body.manual_url;
+  }
+  return "";
+}
+
+function severityLabel(body) {
+  return typeof body.severity === "string" && body.severity.length > 0 ? body.severity : "none";
+}
+
+/** List / detail severity chip: peak for the episode (timeline shows the path). */
+function displaySeverity(thread) {
+  const peak = typeof thread.peakSeverity === "string" && thread.peakSeverity.length > 0 ? thread.peakSeverity : null;
+  const current = typeof thread.severity === "string" && thread.severity.length > 0 ? thread.severity : null;
+  return peak ?? current ?? "none";
+}
+
+/** When the episode has any severity change, annotate FIRING rows; otherwise plain FIRING / RESOLVED. */
+function firingLabelsByEventId(events) {
+  const firings = [];
+  for (const event of events) {
+    const body = objectOf(event.body);
+    if (!body || body.transition !== "FIRING") continue;
+    firings.push({ eventId: event.eventId, severity: severityLabel(body) });
+  }
+  const annotate = firings.some((row, index) => index > 0 && row.severity !== firings[index - 1].severity);
+  const labels = new Map();
+  if (!annotate) return labels;
+  let previous = null;
+  for (const row of firings) {
+    if (previous === null) labels.set(row.eventId, "FIRING (" + row.severity + ")");
+    else if (previous === row.severity) labels.set(row.eventId, "FIRING");
+    else labels.set(row.eventId, "FIRING (" + previous + " → " + row.severity + ")");
+    previous = row.severity;
+  }
+  return labels;
+}
+
+function lineOf(event, firingLabels) {
+  const body = objectOf(event.body);
+  if (!body) return null;
+  if (body.transition === "FIRING") {
+    const labeled = firingLabels && firingLabels.get(event.eventId);
+    return { at: event.receivedAt, text: labeled || "FIRING" };
+  }
+  if (body.transition === "RESOLVED") {
+    return { at: event.receivedAt, text: "RESOLVED" };
+  }
+  if (typeof body.action === "string" && ACTIONS[body.action]) {
+    const name = typeof body.actor === "string" && body.actor.length > 0 ? body.actor : "";
+    return { at: event.receivedAt, text: name ? ACTIONS[body.action] + " · " + name : ACTIONS[body.action] };
+  }
+  if (typeof event.eventId === "string" && event.eventId.startsWith("escalation:") && typeof body.next === "string") {
+    return { at: event.receivedAt, text: "Escalation · " + body.next };
+  }
+  if (typeof event.eventId === "string" && event.eventId.startsWith("reply:") && typeof body.text === "string" && body.text.length > 0) {
+    const name = typeof body.actor === "string" && body.actor.length > 0 ? body.actor : "";
+    return { at: event.receivedAt, text: name ? "Reply · " + name + " · " + body.text : "Reply · " + body.text };
+  }
+  return null;
+}
+
+function episodeEvents(thread, byId) {
+  return (thread.eventIds ?? []).map((id) => byId.get(id)).filter(Boolean);
+}
+
+function show(threads, byId, firingEventId) {
+  const thread = threads.find((item) => item.firingEventId === firingEventId) ?? threads[0];
+  const events = episodeEvents(thread, byId);
+  for (const button of list.querySelectorAll(".row")) {
+    if (button.dataset.key === thread.firingEventId) button.setAttribute("aria-current", "true");
+    else button.removeAttribute("aria-current");
+  }
+  history.replaceState(null, "", "#" + encodeURIComponent(thread.firingEventId));
+  detail.replaceChildren();
+  const firing = firingBody(events);
+  const summary = summaryOf(events, thread.alertKey);
+  const name = monitorName(firing) || summary;
+  const head = node("div", "detail");
+  head.append(node("h2", "", name));
+  if (summary !== name) head.append(node("p", "summary", summary));
+  const facts = node("div", "facts");
+  for (const [label, value, className] of [
+    ["Severity", displaySeverity(thread), displaySeverity(thread) === "none" ? "" : displaySeverity(thread)],
+    ["Condition", thread.condition, ""],
+    ["Attention", thread.attention, ""],
+  ]) {
+    const fact = node("div", "fact");
+    fact.append(node("span", "", label));
+    fact.append(node("strong", className, value));
+    facts.append(fact);
+  }
+  head.append(facts);
+  const series = seriesOf(firing);
+  if (series) head.append(node("p", "series", series));
+  const manual = manualOf(events);
+  if (manual) head.append(node("p", "url", manual));
+  detail.append(head);
+  const firingLabels = firingLabelsByEventId(events);
+  const log = node("ol", "log");
+  for (const event of events) {
+    const line = lineOf(event, firingLabels);
+    if (!line) continue;
+    const item = node("li");
+    const time = node("time", "when", line.at);
+    time.dateTime = line.at;
+    item.append(time, node("span", "event", line.text));
+    log.append(item);
+  }
+  detail.append(log);
+}
+
+async function main() {
+  let threads;
+  let events;
+  try {
+    const [threadResponse, eventResponse] = await Promise.all([fetch("/v1/threads"), fetch("/v1/events")]);
+    if (!threadResponse.ok || !eventResponse.ok) throw new Error("status");
+    threads = (await threadResponse.json()).threads;
+    events = (await eventResponse.json()).events;
+  } catch {
+    status.textContent = "The alert list could not be loaded. Reload the page.";
+    return;
+  }
+  if (!Array.isArray(threads) || threads.length === 0) {
+    list.append(node("p", "empty", "No alerts are stored."));
+    return;
+  }
+  const byId = new Map();
+  for (const event of Array.isArray(events) ? events : []) byId.set(event.eventId, event);
+  for (const thread of threads) {
+    const button = node("button", "row");
+    button.type = "button";
+    button.dataset.key = thread.firingEventId;
+    button.append(node("span", "title", summaryOf(episodeEvents(thread, byId), thread.alertKey)));
+    const meta = node("span", "meta");
+    meta.append(node("span", displaySeverity(thread) === "none" ? "" : displaySeverity(thread), displaySeverity(thread)));
+    meta.append(document.createTextNode(" · " + thread.condition + " · " + thread.attention));
+    button.append(meta);
+    button.addEventListener("click", () => show(threads, byId, thread.firingEventId));
+    list.append(button);
+  }
+  let selected = "";
+  try {
+    selected = decodeURIComponent(location.hash.slice(1));
+  } catch {
+    selected = "";
+  }
+  if (!threads.some((thread) => thread.firingEventId === selected)) selected = threads[0].firingEventId;
+  show(threads, byId, selected);
+}
+
+main();
+</script>
+</body>
+</html>

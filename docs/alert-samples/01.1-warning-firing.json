@@ -1,0 +1,36 @@
+{
+  "contract": "p8.alert",
+  "version": "0.3",
+  "source": "p2",
+  "event_id": "11111111-1111-4111-8111-111111111111",
+  "alert_key": "mon-dc-building:job-room-01:a0f87b2057b3eb10",
+  "transition": "FIRING",
+  "emitted_at": "2026-11-14T22:05:42.335Z",
+  "fired_at": "2026-11-14T22:05:42.335Z",
+  "resolved_at": null,
+  "severity": "warning",
+  "team": "facility-ops",
+  "manual_url": "https://example.test/runbooks/room-env",
+  "summary": "row_count 1 ≥ threshold 1 for 1 consecutive point",
+  "labels": {
+    "alarm_severity": "warning",
+    "asset_id": "ROOM-01",
+    "hall_id": "HALL-01"
+  },
+  "identity_tags": {
+    "asset_id": "ROOM-01",
+    "hall_id": "HALL-01"
+  },
+  "details": {
+    "monitor_id": "mon-dc-building",
+    "monitor_name": "Data Center Building Monitor",
+    "job_id": "job-room-01",
+    "condition_tag_keys": ["alarm_severity"],
+    "metric_name": "row_count",
+    "value": 1,
+    "threshold": 1,
+    "consecutive_points": 1,
+    "window_start": "2026-11-13T22:05:42.335Z",
+    "window_end": "2026-11-14T22:05:42.335Z"
+  }
+}

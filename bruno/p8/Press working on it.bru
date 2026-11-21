@@ -1,0 +1,19 @@
+meta {
+  name: Press working on it
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/slack/interactions
+  body: form-urlencoded
+  auth: none
+}
+
+body:form-urlencoded {
+  payload: {"actions":[{"action_id":"WORKING_ON_IT","value":"{{alertKey}}"}]}
+}
+
+docs {
+  Slack sends this body when a button is pressed. A click from Slack also needs the app Request URL set to a public https address ending in /slack/interactions. 127.0.0.1 is not reachable from Slack.
+}

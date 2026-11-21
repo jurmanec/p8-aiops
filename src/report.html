@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --ink: #1c1f24;
+    --muted: #5c6570;
+    --line: #e3e6eb;
+    --critical: #8d2f2f;
+    --warning: #8a5a12;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 400 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+  }
+  header, form, #status, #rows { padding-left: 28px; padding-right: 28px; }
+  header { padding-top: 20px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  h1 { margin: 0; font-size: 20px; font-weight: 500; }
+  a { color: var(--ink); }
+  form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: end;
+    padding-top: 16px;
+  }
+  label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+  input {
+    color: var(--ink);
+    font: inherit;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  button {
+    font: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  #status, .window { color: var(--muted); font-size: 13px; }
+  #status:empty { display: none; }
+  #rows { padding-top: 8px; padding-bottom: 28px; }
+  .window { margin: 0 0 12px; }
+  .table-wrap {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: 0; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  .when { white-space: nowrap; }
+  .episode {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    white-space: nowrap;
+    user-select: all;
+  }
+  .critical { color: var(--critical); }
+  .warning { color: var(--warning); }
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .summary-actions { margin-top: 14px; }
+  .summary-text { margin: 10px 0 0; max-width: 68ch; }
+  .summary-text:empty { display: none; }
+  .summary-text.pending {
+    color: var(--muted);
+    animation: summary-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes summary-pulse {
+    50% { opacity: 0.45; }
+  }
+  .empty { margin: 0; }
+  @media (max-width: 720px) {
+    header, form, #status, #rows { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Report</h1>
+    <a href="/">Alerts</a>
+  </div>
+</header>
+<form id="window">
+  <label>Start <input name="start" type="datetime-local" required></label>
+  <label>End <input name="end" type="datetime-local" required></label>
+  <button type="submit">Show</button>
+</form>
+<p id="status"></p>
+<section id="rows" aria-label="Episodes"></section>
+<script>
+const ACTIONS = { WORKING_ON_IT: "In progress", IGNORE_IT: "Non actionable" };
+const status = document.getElementById("status");
+const rows = document.getElementById("rows");
+
+function node(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function objectOf(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+
+function utc(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString();
+}
+
+function duration(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const parts = [];
+  if (hours > 0) parts.push(hours + "h");
+  if (minutes > 0) parts.push(minutes + "m");
+  if (seconds > 0 || parts.length === 0) parts.push(seconds + "s");
+  return parts.join(" ");
+}
+
+function eventBody(events, firingEventId) {
+  const event = events.find((item) => item.eventId === firingEventId);
+  return objectOf(event && event.body);
+}
+
+function summaryOf(events, firingEventId, alertKey) {
+  const body = eventBody(events, firingEventId);
+  if (body && typeof body.summary === "string" && body.summary.length > 0) return body.summary;
+  return alertKey;
+}
+
+function firedAtOf(events, firingEventId) {
+  const body = eventBody(events, firingEventId);
+  if (!body || body.transition !== "FIRING" || typeof body.fired_at !== "string" || body.fired_at.length === 0) return "—";
+  const parsed = new Date(body.fired_at);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+/** Prefer identity_tags; else labels / time_series_tags. Same rule as the summary brief. */
+function identityOf(events, firingEventId) {
+  const body = eventBody(events, firingEventId);
+  const tags = stringMap(body && body.identity_tags) || stringMap(body && body.labels) || stringMap(body && body.time_series_tags);
+  if (!tags) return "—";
+  return Object.keys(tags)
+    .sort()
+    .map((key) => key + "=" + tags[key])
+    .join(", ");
+}
+
+function stringMap(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const out = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry === "string") out[key] = entry;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function answerOf(thread) {
+  const answer = ACTIONS[thread.answer];
+  if (!answer) return "—";
+  return typeof thread.answerMs === "number" ? answer + " · " + duration(thread.answerMs) : answer;
+}
+
+function noteOf(thread) {
+  const parts = [];
+  if (thread.done) {
+    const note = typeof thread.doneNote === "string" && thread.doneNote.length > 0 ? " · " + thread.doneNote : "";
+    parts.push("Done" + note);
+  }
+  if (typeof thread.escalation === "string" && thread.escalation.length > 0) parts.push("Escalation · " + thread.escalation);
+  if (typeof thread.discrepancy === "string" && thread.discrepancy.length > 0) parts.push(thread.discrepancy);
+  return parts.length > 0 ? parts.join(". ") : "—";
+}
+
+function cell(text, className) {
+  return node("td", className, text);
+}
+
+function render(report, events) {
+  rows.replaceChildren();
+  rows.append(node("p", "window", report.start + " – " + report.end));
+  const threads = Array.isArray(report.threads) ? report.threads : [];
+  if (threads.length === 0) {
+    rows.append(node("p", "empty", "No episodes opened in this window."));
+    return;
+  }
+  const wrap = node("div", "table-wrap");
+  const table = document.createElement("table");
+  table.setAttribute("aria-label", "Episodes in this window");
+  const head = document.createElement("thead");
+  const labels = document.createElement("tr");
+  for (const label of ["Episode", "Fired at", "Identity", "Alert", "Severity", "Answer", "Condition", "Attention", "Manual", "Note"]) {
+    labels.append(node("th", "", label));
+  }
+  head.append(labels);
+  table.append(head);
+  for (const thread of threads) {
+    const row = document.createElement("tr");
+    const episode = cell(thread.firingEventId ?? "—", "episode");
+    episode.title = "Copy this id to find the episode on Alerts";
+    row.append(episode);
+    row.append(cell(firedAtOf(events, thread.firingEventId), "when"));
+    row.append(cell(identityOf(events, thread.firingEventId)));
+    row.append(cell(summaryOf(events, thread.firingEventId, thread.alertKey)));
+    row.append(cell(thread.severity ?? "none", thread.severity ?? ""));
+    row.append(cell(answerOf(thread)));
+    row.append(cell(thread.condition));
+    row.append(cell(thread.attention));
+    row.append(cell(thread.manualPresent ? "Present" : "Missing"));
+    row.append(cell(noteOf(thread)));
+    table.append(row);
+  }
+  wrap.append(table);
+  const stats = node("ul", "stats");
+  const attentionOpen = threads.filter((thread) => thread.attention === "open").length;
+  const conditionFiring = threads.filter((thread) => thread.condition === "firing").length;
+  const escalated = threads.filter((thread) => typeof thread.escalation === "string" && thread.escalation.length > 0).length;
+  const missing = threads.filter((thread) => thread.manualPresent === false).length;
+  const discrepancies = threads.filter((thread) => typeof thread.discrepancy === "string" && thread.discrepancy.length > 0).length;
+  for (const line of [
+    "Attention open: " + attentionOpen,
+    "Condition firing: " + conditionFiring,
+    "Escalated: " + escalated,
+    "Missing manual: " + missing,
+    "Discrepancies: " + discrepancies,
+  ]) {
+    stats.append(node("li", "", line));
+  }
+  const actions = node("div", "summary-actions");
+  const button = node("button", "", "Summarize");
+  button.type = "button";
+  const summary = node("p", "summary-text");
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    summary.classList.add("pending");
+    summary.textContent = "Writing summary…";
+    try {
+      const response = await fetch("/v1/summary", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ start: report.start, end: report.end }),
+      });
+      const body = await response.json();
+      summary.classList.remove("pending");
+      if (!response.ok) {
+        summary.textContent = typeof body.error === "string" ? body.error : "The summary could not be written.";
+        return;
+      }
+      summary.textContent = typeof body.paragraph === "string" && body.paragraph.length > 0 ? body.paragraph : "No summary.";
+    } catch {
+      summary.classList.remove("pending");
+      summary.textContent = "The summary could not be written.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+  actions.append(button, summary);
+  rows.append(wrap, stats, actions);
+}
+
+document.getElementById("window").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  status.textContent = "";
+  rows.replaceChildren();
+  const data = new FormData(event.currentTarget);
+  const start = utc(data.get("start"));
+  const end = utc(data.get("end"));
+  if (!start || !end) {
+    status.textContent = "Start and end must be times.";
+    return;
+  }
+  const query = "start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end);
+  try {
+    const [reportResponse, eventResponse] = await Promise.all([
+      fetch("/v1/shifts?" + query),
+      fetch("/v1/events"),
+    ]);
+    if (!reportResponse.ok) {
+      const body = await reportResponse.json();
+      status.textContent = typeof body.error === "string" ? body.error : "The report could not be loaded.";
+      return;
+    }
+    if (!eventResponse.ok) throw new Error("events");
+    render(await reportResponse.json(), (await eventResponse.json()).events ?? []);
+  } catch {
+    status.textContent = "The report could not be loaded. Try again.";
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+meta {
+  name: Post done
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/v1/responses
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "alert_key": "{{alertKey}}",
+    "action": "DONE",
+    "note": "loop is closed"
+  }
+}

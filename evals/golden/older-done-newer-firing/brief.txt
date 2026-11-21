@@ -1,0 +1,9 @@
+Window: 2026-11-16T14:00:00.000Z to 2026-11-16T16:00:00.000Z
+Attention open: 1
+Condition firing: 1
+Escalated: 0
+Missing manual: 0
+Discrepancies: 0
+Episode 44444444-4444-4444-8444-444444444444. Alert: row_count 2 ≥ threshold 1 for 1 consecutive point. Identity: asset_id=ROOM-01, hall_id=HALL-01. Fired at: 2026-11-14T23:01:00.000Z. Severity: critical. Condition: firing. Attention: open. Answer: none. Done: no. Discrepancy: none. Escalation: none
+Episode 22222222-2222-4222-8222-222222222211. Alert: row_count 2 ≥ threshold 1 for 1 consecutive point. Identity: asset_id=ROOM-01, hall_id=HALL-01. Fired at: 2026-11-14T23:01:00.000Z. Severity: critical. Condition: cleared. Attention: owned. Answer: none. Done: yes. Discrepancy: none. Escalation: none
+Reply from bao: filter was blocked

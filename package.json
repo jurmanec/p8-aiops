@@ -1,0 +1,23 @@
+{
+  "name": "p8-aiops",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/main.ts",
+    "test": "vitest run",
+    "check": "tsc --noEmit",
+    "eval:freeze": "node --experimental-strip-types evals/freeze-brief.ts",
+    "eval:golden": "node --experimental-strip-types evals/run.ts",
+    "eval:plots": "node --experimental-strip-types evals/plot-runs.ts",
+    "eval:phoenix": "node --experimental-strip-types evals/phoenix-golden.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "dependencies": {
+    "@arizeai/phoenix-client": "^8.0.1",
+    "@arizeai/phoenix-otel": "^3.1.0"
+  }
+}

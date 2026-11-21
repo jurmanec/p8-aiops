@@ -1,0 +1,23 @@
+meta {
+  name: Post working on it
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/v1/responses
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "alert_key": "{{alertKey}}",
+    "action": "WORKING_ON_IT",
+    "note": "checking the room"
+  }
+}

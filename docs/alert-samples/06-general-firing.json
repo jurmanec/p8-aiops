@@ -1,0 +1,18 @@
+{
+  "contract": "p8.alert",
+  "version": "0.3",
+  "source": "alertmanager",
+  "event_id": "am:fingerprint:2026-11-15T18:02:11.000Z:firing",
+  "alert_key": "am:3b1c9e0a4d77",
+  "transition": "FIRING",
+  "emitted_at": "2026-11-15T18:02:11.000Z",
+  "fired_at": "2026-11-15T18:02:00.000Z",
+  "resolved_at": null,
+  "severity": "critical",
+  "team": "facility-ops",
+  "manual_url": "https://example.test/runbook",
+  "summary": "CRAH-01 supply air high",
+  "labels": { "alertname": "SupplyAirHigh", "asset": "CRAH-01" },
+  "identity_tags": { "asset": "CRAH-01" },
+  "details": {}
+}
