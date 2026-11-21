@@ -2,6 +2,8 @@
 
 Structured alert events that **any monitoring or industry alerting source** can POST into this process. P8 stays **domain-blind**: it does not branch on plant tag names, label keys, or producer-specific fields in `details`.
 
+This file is the **public consumer-facing** contract for the alert seam (program id **C3**). Program board index: keep versions and producer notes there; change the envelope here.
+
 Samples: [alert-samples](../alert-samples/README.md). Behavior after intake: [design](../design.md).
 
 This process accepts contract versions **0.2** and **0.3**. Prefer **0.3** for new producers.
@@ -154,6 +156,10 @@ Requires `monitor_id`, `job_id`, and `time_series_tags`. Tag map is `time_series
 ```
 
 There is **no** top-level `asset_id`. If present, it is only a key inside tags / `labels`.
+
+## Consumer note — severity update
+
+An open `alert_key` plus a later `FIRING` with a **changed** `severity` (same series, usually the original `fired_at`) is a **severity update**: same episode / Slack parent, not a new top-level alert. Same-severity repeats while open are quiet. Detail: [attention and condition](../concepts/p8-app/attention-and-condition.md), [design](../design.md).
 
 ## Out of scope for this contract
 
